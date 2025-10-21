@@ -4,7 +4,16 @@ import { useUser } from './useUser'
 
 export function useProfile() {
   const { user, loading: userLoading } = useUser()
-  const [profile, setProfile] = useState<{ username?: string; age?: number } | null>(null)
+  const [profile, setProfile] = useState<{
+    username?: string
+    age?: number
+    photo_url?: string | null
+    gender?: string
+    city?: string
+    languages?: string
+    looking_for?: string
+    about?: string
+  } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -17,7 +26,7 @@ export function useProfile() {
     const loadProfile = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('username, age')
+        .select('username, age, photo_url, gender, city, languages, looking_for, about')
         .eq('id', user.id)
         .single()
 
