@@ -4,94 +4,29 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/hooks/useUser";
+import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 
 export default function CreateProfilePage() {
   const router = useRouter();
   const { user, loading: userLoading } = useUser();
   const [username, setUsername] = useState("");
   const [age, setAge] = useState<number | "">("");
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [gender, setGender] = useState(""); // Пол
-  const [city, setCity] = useState(""); // Город
-  const [languages, setLanguages] = useState(""); // Языки
-  const [lookingFor, setLookingFor] = useState(""); // Кого ищет
+  const [gender, setGender] = useState("");
+  const [city, setCity] = useState("");
+  const [languages, setLanguages] = useState("");
+  const [lookingFor, setLookingFor] = useState("");
   const [about, setAbout] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Редирект на логин, если не авторизован
-  useEffect(() => {
-    if (!user && !userLoading) router.push("/login");
-  }, [user, userLoading]);
-
-  // Предварительный просмотр фото
-  useEffect(() => {
-    if (!photo) {
-      setPhotoPreview(null);
-      return;
-    }
-    const objectUrl = URL.createObjectURL(photo);
-    setPhotoPreview(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [photo]);
+  const { setPhoto, photoPreview, uploadPhoto } = usePhotoUpload(user!);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setLoading(true);
 
-    let photoUrl: string | null = null;
+    const photoUrl = await uploadPhoto();
 
-    // Получаем текущий профиль пользователя
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles")
-      .select("photo_url")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError) {
-      console.error("Error fetching profile:", profileError);
-      setLoading(false);
-      return;
-    }
-
-    // Удаляем старое фото, если оно существует
-    if (profileData?.photo_url) {
-      const oldFilePath = profileData.photo_url.split("/").slice(-1)[0]; // Извлекаем имя файла из URL
-      const { error: deleteError } = await supabase.storage
-        .from("profile_photos")
-        .remove([oldFilePath]);
-
-      if (deleteError) {
-        console.error("Error deleting old photo:", deleteError);
-        setLoading(false);
-        return;
-      }
-    }
-
-    // Загружаем новое фото
-    if (photo) {
-      const fileExt = photo.name.split(".").pop();
-      const filePath = `${user.id}-${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("profile_photos")
-        .upload(filePath, photo, { upsert: true });
-
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        setLoading(false);
-        return;
-      }
-
-      const { data } = supabase.storage
-        .from("profile_photos")
-        .getPublicUrl(filePath);
-
-      photoUrl = data.publicUrl;
-    }
-
-    // Обновляем профиль пользователя
     const { error } = await supabase.from("profiles").upsert({
       id: user.id,
       username,
@@ -113,9 +48,11 @@ export default function CreateProfilePage() {
     setLoading(false);
     setUsername("");
     setAge("");
-    setPhoto(null);
-    setPhotoPreview(null);
   };
+
+  useEffect(() => {
+    if (!user && !userLoading) router.push("/login");
+  }, [user, userLoading]);
 
   return (
     <div className="max-w-md mx-auto mt-10">
