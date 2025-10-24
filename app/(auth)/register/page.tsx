@@ -1,77 +1,173 @@
 "use client";
 
-import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
+
+import { Button } from "@/components/ui/button";
+
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+
+import { Input } from "@/components/ui/input";
+import { checkEmailExists } from "@/helpers/checkEmailExists";
+import { PasswordInput } from "@/components/ui/password-input";
+
+const formSchema = z
+  .object({
+    email: z.email("Must be an email"),
+    password: z.string().min(6, "Password must be at least 6 characters."),
+    confirmPassword: z.string().min(6, "Please confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 export default function RegisterPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
 
-    const {
-      data: { user },
-    } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+  async function onSubmit(formData: z.infer<typeof formSchema>) {
+    try {
+      // ✅ Проверяем, существует ли email уже
+      const exists = await checkEmailExists(formData.email);
 
-    if (user) {
-      const { error: profileError } = await supabase.from("profiles").insert({
-        id: user.id, // важно, чтобы совпадало с auth.users.id
-        username: "",
-        bio: "",
-        photo_url: null,
-        fact1: "",
-        fact2: "",
-        fact3: "",
+      if (exists) {
+        toast.error("This email is already registered.", {
+          position: "top-center",
+        });
+        return;
+      }
+
+      // ✅ Создание пользователя
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
       });
 
-      if (profileError) console.error("Error creating profile:", profileError);
-    }
+      if (error) {
+        toast.error(error.message, { position: "top-center" });
+        return;
+      }
 
-    if (error) {
-      setError(error.message);
-    } else {
-      alert("Check your email for confirmation link!");
-      // router.push("/profile/create");
+      toast.success("Check your email for confirmation link!", {
+        position: "top-center",
+      });
+      router.push("/");
+    } catch {
+      toast.error("Error creating profile", {
+        position: "top-center",
+      });
     }
-  };
+  }
 
   return (
     <div className="max-w-md mx-auto mt-20">
-      <h1 className="text-2xl font-bold mb-4">Create Account</h1>
-      <form onSubmit={handleRegister} className="flex flex-col gap-3">
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="border p-2 rounded"
-        />
-        <input
-          type="password"
-          placeholder="Password (min 6 chars)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 rounded"
-        />
-        <button
-          type="submit"
-          className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-        >
-          Sign Up
-        </button>
-        {error && <p className="text-red-500">{error}</p>}
-      </form>
+      <Card className="w-full sm:max-w-md">
+        <CardHeader>
+          <CardTitle>Register Form</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form id="form" onSubmit={form.handleSubmit(onSubmit)}>
+            <FieldGroup>
+              <Controller
+                name="email"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="form-email">Email</FieldLabel>
+                    <Input
+                      {...field}
+                      id="form-email"
+                      aria-invalid={fieldState.invalid}
+                      placeholder="Enter your email"
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="password"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="form-password">Password</FieldLabel>
+                    <PasswordInput
+                      {...field}
+                      id="form-password"
+                      placeholder="Create your password"
+                    />
+                    <FieldDescription>
+                      The password must contain at least 6 characters
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="confirmPassword"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel>Confirm Password</FieldLabel>
+                    <PasswordInput
+                      {...field}
+                      placeholder="Repeat your password"
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+          </form>
+        </CardContent>
+        <CardFooter>
+          <Field orientation="horizontal">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => form.reset()}
+            >
+              Reset
+            </Button>
+            <Button type="submit" form="form">
+              Register
+            </Button>
+          </Field>
+        </CardFooter>
+      </Card>
     </div>
   );
 }

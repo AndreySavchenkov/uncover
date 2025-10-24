@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/hooks/useUser";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
+import { email } from "zod";
 
 export default function CreateProfilePage() {
   const router = useRouter();
@@ -37,6 +38,7 @@ export default function CreateProfilePage() {
       languages,
       looking_for: lookingFor,
       about,
+      email: user.email
     });
 
     if (error) {

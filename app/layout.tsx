@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/header/header";
 import { Footer } from "@/components/footer/footer";
+import { Toaster } from "@/components/ui/sonner";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,6 +35,7 @@ export default function RootLayout({
         <div className="min-h-[calc(100vh-100px)] flex justify-center">
           <main className="container">{children}</main>
         </div>
+        <Toaster />
         <Footer />
       </body>
     </html>
