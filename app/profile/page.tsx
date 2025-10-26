@@ -9,6 +9,19 @@ export default function ProfilePage() {
   if (loading) return <div>Loading...</div>;
   if (!profile) return <div>No profile found</div>;
 
+  const languages = profile.languages
+    ? profile.languages
+        .split(",")
+        .map((s) => s.trim())
+        .join(", ")
+    : "—";
+  const lookingFor = profile.looking_for
+    ? profile.looking_for
+        .split(",")
+        .map((s) => s.trim())
+        .join(", ")
+    : "—";
+
   return (
     <div className="max-w-md mx-auto mt-10">
       <h1 className="text-2xl font-bold mb-4">Your Profile</h1>
@@ -19,16 +32,16 @@ export default function ProfilePage() {
         <strong>Age:</strong> {profile.age}
       </p>
       <p>
-        <strong>City:</strong> {profile.city}
+        <strong>City:</strong> {profile.city ?? "—"}
       </p>
       <p>
         <strong>Gender:</strong> {profile.gender}
       </p>
       <p>
-        <strong>Languages:</strong> {profile.languages}
+        <strong>Languages:</strong> {languages}
       </p>
       <p>
-        <strong>Looking For:</strong> {profile.looking_for}
+        <strong>Looking For:</strong> {lookingFor}
       </p>
       <p>
         <strong>About:</strong> {profile.about || "No information provided"}
