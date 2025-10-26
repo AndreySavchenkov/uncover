@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/hooks/useUser";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import z from "zod";
+import { PhotoUploader } from "@/components/ui/photo-uploader";
 
 import {
   Card,
@@ -29,18 +30,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { MultiSelect } from "@/components/ui/multiselect";
 import { CitySelect } from "@/components/ui/city-select";
 import { GENDER_OPTIONS, Genders, LANGUAGE_OPTIONS } from "@/types";
-import { ImagePlus } from "lucide-react";
+const ABOUT_MAX = 500;
 
 const formSchema = z.object({
-  username: z.string().trim().min(3, "Min 3 symbols"),
+  username: z
+    .string()
+    .trim()
+    .min(3, "Min 3 symbols")
+    .nonempty("Username is required"),
   age: z
     .string()
+    .nonempty("Age is required")
     .transform((val) => Number(val))
     .refine((val) => !isNaN(val), { message: "Age must be a number" })
     .refine((val) => val >= 18, { message: "You must be at least 18" })
     .refine((val) => val <= 100, { message: "Really? 😅" })
     .transform((val) => String(val)),
-  about: z.string().trim(),
+  about: z.string().trim().max(ABOUT_MAX, `Up to ${ABOUT_MAX} characters`),
   gender: z.nativeEnum(Genders),
   city_id: z.string().uuid().nullable().optional(),
   languages: z.array(z.string()).min(1, "Select at least one language"),
@@ -48,6 +54,8 @@ const formSchema = z.object({
 });
 
 export default function CreateProfilePage() {
+  const [isLoading, setIsLoading] = useState(false);
+
   const router = useRouter();
   const { user, loading: userLoading } = useUser();
 
@@ -66,6 +74,7 @@ export default function CreateProfilePage() {
 
   async function onSubmit(formData: z.infer<typeof formSchema>) {
     try {
+      setIsLoading(true);
       if (user) {
         const photoUrl = await uploadPhoto();
 
@@ -99,13 +108,15 @@ export default function CreateProfilePage() {
       toast.error(`Error: ${error}`, {
         position: "top-center",
       });
+    } finally {
+      setIsLoading(false);
     }
   }
 
   const { setPhoto, photoPreview, uploadPhoto } = usePhotoUpload(user!);
 
   useEffect(() => {
-    if (!user && !userLoading) router.push("/login");
+    if (!user && !userLoading) router.push("/profile");
   }, [user, userLoading]);
 
   return (
@@ -118,77 +129,16 @@ export default function CreateProfilePage() {
           <form id="form" onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup>
               <div className="grid gap-6 md:grid-cols-3">
-                {/* Фото / дропзона */}
                 <div className="md:col-span-1">
-                  <Field>
-                    <FieldLabel htmlFor="form-photo">Profile photo</FieldLabel>
-                    <input
-                      id="form-photo"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-                    />
-                    <label
-                      htmlFor="form-photo"
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const f = e.dataTransfer.files?.[0];
-                        if (f) setPhoto(f);
-                      }}
-                      className="relative mt-2 block aspect-square w-full overflow-hidden rounded-xl border-2 border-dashed border-muted-foreground/40 bg-muted/40 hover:bg-muted/60 transition-colors cursor-pointer"
-                      aria-describedby="photo-hint"
-                    >
-                      {photoPreview ? (
-                        <>
-                          <img
-                            src={photoPreview}
-                            alt="Photo preview"
-                            className="h-full w-full object-cover"
-                          />
-                          <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <div className="absolute bottom-2 right-2 rounded-md bg-background/80 px-2 py-1 text-xs text-foreground shadow-sm backdrop-blur">
-                            Change photo
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
-                          <ImagePlus className="h-8 w-8 opacity-70" />
-                          <div className="text-sm font-medium">
-                            Click or drop image
-                          </div>
-                          <div id="photo-hint" className="text-xs">
-                            PNG/JPG up to 5MB
-                          </div>
-                        </div>
-                      )}
-                    </label>
-                    {photoPreview && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            document.getElementById("form-photo")?.click()
-                          }
-                          className="h-8"
-                        >
-                          Change
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => setPhoto(null)}
-                          className="h-8 text-destructive hover:text-destructive"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    )}
-                  </Field>
+                  <PhotoUploader
+                    id="form-photo"
+                    label="Profile photo"
+                    hint="PNG/JPG up to 5MB"
+                    previewUrl={photoPreview}
+                    onSelectFile={setPhoto}
+                  />
                 </div>
-                {/* Поля формы */}
+
                 <div className="md:col-span-2 space-y-4">
                   <Controller
                     name="username"
@@ -209,7 +159,7 @@ export default function CreateProfilePage() {
                       </Field>
                     )}
                   />
-                  {/* age */}
+
                   <Controller
                     name="age"
                     control={form.control}
@@ -228,44 +178,7 @@ export default function CreateProfilePage() {
                       </Field>
                     )}
                   />
-                  {/* about */}
-                  <Controller
-                    name="about"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="form-about">About</FieldLabel>
-                        <Textarea
-                          {...field}
-                          id="form-about"
-                          placeholder="Tell about yourself"
-                          className="min-h-28"
-                        />
-                        {fieldState.invalid && (
-                          <FieldError errors={[fieldState.error]} />
-                        )}
-                      </Field>
-                    )}
-                  />
-                  {/* city (single, хранит city_id) */}
-                  <Controller
-                    name="city_id"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel>City</FieldLabel>
-                        <CitySelect
-                          value={(field.value as string) ?? null}
-                          onChange={field.onChange}
-                          placeholder="City, Country"
-                        />
-                        {fieldState.invalid && (
-                          <FieldError errors={[fieldState.error]} />
-                        )}
-                      </Field>
-                    )}
-                  />
-                  {/* gender (single select) */}
+
                   <Controller
                     name="gender"
                     control={form.control}
@@ -286,7 +199,52 @@ export default function CreateProfilePage() {
                       </Field>
                     )}
                   />
-                  {/* languages (multi select) */}
+
+                  <Controller
+                    name="about"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="form-about">About</FieldLabel>
+                        <Textarea
+                          {...field}
+                          id="form-about"
+                          placeholder="Tell about yourself"
+                          className="min-h-28"
+                          maxLength={ABOUT_MAX}
+                          aria-describedby="about-counter"
+                        />
+                        <div
+                          id="about-counter"
+                          className="mt-1 text-xs text-muted-foreground text-right"
+                        >
+                          {field.value?.length ?? 0}/{ABOUT_MAX}
+                        </div>
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+
+                  <Controller
+                    name="city_id"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel>City</FieldLabel>
+                        <CitySelect
+                          value={(field.value as string) ?? null}
+                          onChange={field.onChange}
+                          placeholder="Your city"
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+
                   <Controller
                     name="languages"
                     control={form.control}
@@ -307,7 +265,7 @@ export default function CreateProfilePage() {
                       </Field>
                     )}
                   />
-                  {/* looking for (multi select) */}
+
                   <Controller
                     name="looking_for"
                     control={form.control}
@@ -335,8 +293,8 @@ export default function CreateProfilePage() {
         </CardContent>
         <CardFooter>
           <Field orientation="horizontal">
-            <Button type="submit" form="form">
-              Create
+            <Button type="submit" form="form" disabled={isLoading}>
+              {isLoading ? "Creating..." : "Create"}
             </Button>
           </Field>
         </CardFooter>
