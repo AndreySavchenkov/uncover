@@ -32,7 +32,7 @@ export const Header = () => {
             </NavigationMenuLink>
 
             <NavigationMenuLink asChild>
-              <Link href="/matches">Matches</Link>
+              <Link href="/users">People</Link>
             </NavigationMenuLink>
           </NavigationMenu>
         )}
