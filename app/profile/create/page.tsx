@@ -47,7 +47,7 @@ const formSchema = z.object({
     .refine((val) => val <= 100, { message: "Really? 😅" })
     .transform((val) => String(val)),
   about: z.string().trim().max(ABOUT_MAX, `Up to ${ABOUT_MAX} characters`),
-  gender: z.nativeEnum(Genders),
+  gender: z.nativeEnum(Genders) ,
   city_id: z.string().uuid().nullable().optional(),
   languages: z.array(z.string()).min(1, "Select at least one language"),
   looking_for: z.array(z.string()).min(1, "Select who you're looking for"),
