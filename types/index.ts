@@ -1,3 +1,5 @@
+// genders
+
 export enum Genders {
   Male = "male",
   Female = "female",
@@ -9,6 +11,8 @@ export const GENDER_OPTIONS = [
   { value: Genders.Female, label: "Female 👩" },
   { value: Genders.Couple, label: "Couple 👫" },
 ];
+
+// languages
 
 export enum Languages {
   English = "🇬🇧 English",
@@ -67,4 +71,23 @@ export const LANGUAGE_OPTIONS = [
   { value: "lt", label: Languages.Lithuanian },
   { value: "is", label: Languages.Icelandic },
 ];
+
+// tags
+
+export const CORE_TAG_ORDER = [
+  "boundaries",
+  "comfort",
+  "communication",
+  "couples_meet",
+  "drinks",
+  "food",
+  "leisure",
+  "places",
+  "planning",
+  "romance",
+  "safety",
+  "values",
+] as const;
+
+export type CoreTag = (typeof CORE_TAG_ORDER)[number];
   

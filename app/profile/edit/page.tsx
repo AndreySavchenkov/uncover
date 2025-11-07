@@ -56,6 +56,13 @@ const formSchema = z.object({
   ),
   languages: z.array(z.string()).min(1, "Select at least one language"),
   looking_for: z.array(z.string()).min(1, "Select who you're looking for"),
+  instagram: z.string().trim().url("Must be a valid URL"),
+  telegram: z
+    .union([z.string().trim().url("Must be a valid URL"), z.literal("")])
+    .optional(),
+  whatsapp: z
+    .union([z.string().trim().url("Must be a valid URL"), z.literal("")])
+    .optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -90,6 +97,9 @@ export default function EditProfile() {
       city_id: profile.city_id ?? null,
       languages: toArray(profile.languages),
       looking_for: toArray(profile.looking_for),
+      instagram: profile.instagram ?? "", // added
+      telegram: profile.telegram ?? "", // added
+      whatsapp: profile.whatsapp ?? "", // added
     };
   }, [profile]);
 
@@ -104,6 +114,9 @@ export default function EditProfile() {
       city_id: null,
       languages: [],
       looking_for: [],
+      instagram: "", // added
+      telegram: "", // added
+      whatsapp: "", // added
     },
   });
 
@@ -181,45 +194,50 @@ export default function EditProfile() {
   const onSubmit: SubmitHandler<FormValues> = async (values) => {
     try {
       setIsSaving(true);
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const profileId = (profile as { id?: string } | null | undefined)?.id;
       const targetId = profileId ?? user?.id ?? null;
       if (!targetId) throw new Error("Can't determine profile id");
 
       const oldPhotoUrl = profile?.photo_url ?? null;
 
-      // Собираем только изменённые поля
       const initial = initialRef.current;
       const changes: Record<string, any> = {};
+      const norm = (v?: string | null) => {
+        const s = (v ?? "").trim();
+        return s.length ? s : null;
+      };
+
       if (initial) {
-        if (values.username.trim() !== initial.username.trim()) {
+        if (values.username.trim() !== initial.username.trim())
           changes.username = values.username.trim();
-        }
-        if (Number(values.age) !== Number(initial.age)) {
+        if (Number(values.age) !== Number(initial.age))
           changes.age = Number(values.age);
-        }
-        if (values.about.trim() !== initial.about.trim()) {
+        if (values.about.trim() !== initial.about.trim())
           changes.about = values.about.trim();
-        }
-        if (values.gender !== initial.gender) {
-          changes.gender = values.gender;
-        }
-        if ((values.city_id ?? null) !== (initial.city_id ?? null)) {
+        if (values.gender !== initial.gender) changes.gender = values.gender;
+        if ((values.city_id ?? null) !== (initial.city_id ?? null))
           changes.city_id = values.city_id ?? null;
-        }
+
         const langsNow = normJoin(values.languages);
         const langsInit = normJoin(initial.languages);
-        if (langsNow !== langsInit) {
-          changes.languages = langsNow;
-        }
+        if (langsNow !== langsInit) changes.languages = langsNow;
+
         const lfNow = normJoin(values.looking_for);
         const lfInit = normJoin(initial.looking_for);
-        if (lfNow !== lfInit) {
-          changes.looking_for = lfNow;
-        }
+        if (lfNow !== lfInit) changes.looking_for = lfNow;
+
+        // socials
+        if (norm(values.instagram) !== norm(initial.instagram))
+          changes.instagram = norm(values.instagram);
+        if (norm(values.telegram) !== norm(initial.telegram))
+          changes.telegram = norm(values.telegram);
+        if (norm(values.whatsapp) !== norm(initial.whatsapp))
+          changes.whatsapp = norm(values.whatsapp);
       } else {
         changes.username = values.username.trim();
         changes.age = Number(values.age);
@@ -228,9 +246,12 @@ export default function EditProfile() {
         changes.city_id = values.city_id ?? null;
         changes.languages = normJoin(values.languages);
         changes.looking_for = normJoin(values.looking_for);
+        changes.instagram = norm(values.instagram);
+        changes.telegram = norm(values.telegram);
+        changes.whatsapp = norm(values.whatsapp);
       }
 
-      // Фото загружаем ДО проверки "no changes"
+      // Фото загрузка (как было)
       if (photo) {
         try {
           const photoUrl = await uploadPhoto(targetId);
@@ -492,6 +513,53 @@ export default function EditProfile() {
                           onChange={field.onChange}
                           placeholder="Who are you looking for?"
                           enableSearch={false}
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+
+                  {/* Social links */}
+                  <Controller
+                    name="instagram"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel>Instagram URL</FieldLabel>
+                        <Input
+                          {...field}
+                          placeholder="https://instagram.com/yourname"
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="telegram"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel>Telegram URL</FieldLabel>
+                        <Input {...field} placeholder="https://t.me/yourname" />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="whatsapp"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel>WhatsApp URL</FieldLabel>
+                        <Input
+                          {...field}
+                          placeholder="https://wa.me/1234567890"
                         />
                         {fieldState.invalid && (
                           <FieldError errors={[fieldState.error]} />

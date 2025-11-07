@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/hooks/useUser";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
-import z from "zod";
+import { z } from "zod";
 import { PhotoUploader } from "@/components/ui/photo-uploader";
 
 import {
@@ -47,10 +47,17 @@ const formSchema = z.object({
     .refine((val) => val <= 100, { message: "Really? 😅" })
     .transform((val) => String(val)),
   about: z.string().trim().max(ABOUT_MAX, `Up to ${ABOUT_MAX} characters`),
-  gender: z.nativeEnum(Genders) ,
+  gender: z.nativeEnum(Genders),
   city_id: z.string().uuid().nullable().optional(),
   languages: z.array(z.string()).min(1, "Select at least one language"),
   looking_for: z.array(z.string()).min(1, "Select who you're looking for"),
+  instagram: z.string().trim().url("Must be a valid URL"), // REQUIRED
+  telegram: z
+    .union([z.string().trim().url("Must be a valid URL"), z.literal("")])
+    .optional(),
+  whatsapp: z
+    .union([z.string().trim().url("Must be a valid URL"), z.literal("")])
+    .optional(),
 });
 
 export default function CreateProfilePage() {
@@ -69,6 +76,9 @@ export default function CreateProfilePage() {
       city_id: null,
       languages: [],
       looking_for: [],
+      instagram: "",
+      telegram: "",
+      whatsapp: "",
     },
   });
 
@@ -85,10 +95,13 @@ export default function CreateProfilePage() {
           photo_url: photoUrl,
           gender: formData.gender,
           city_id: formData.city_id ?? null,
-          languages: formData.languages.join(","), // хранение как строка
-          looking_for: formData.looking_for.join(","), // хранение как строка
+          languages: formData.languages.join(","),
+          looking_for: formData.looking_for.join(","),
           about: formData.about,
           email: user.email,
+          instagram: formData.instagram, // REQUIRED -> без null
+          telegram: (formData.telegram ?? "").trim() || null,
+          whatsapp: (formData.whatsapp ?? "").trim() || null,
         });
 
         if (error) {
@@ -129,6 +142,7 @@ export default function CreateProfilePage() {
           <form id="form" onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup>
               <div className="grid gap-6 md:grid-cols-3">
+                {/* Фото */}
                 <div className="md:col-span-1">
                   <PhotoUploader
                     id="form-photo"
@@ -139,6 +153,7 @@ export default function CreateProfilePage() {
                   />
                 </div>
 
+                {/* Поля */}
                 <div className="md:col-span-2 space-y-4">
                   <Controller
                     name="username"
@@ -279,6 +294,53 @@ export default function CreateProfilePage() {
                           onChange={field.onChange}
                           placeholder="Who are you looking for?"
                           enableSearch={false}
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+
+                  {/* Social links */}
+                  <Controller
+                    name="instagram"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel>Instagram URL</FieldLabel>
+                        <Input
+                          {...field}
+                          placeholder="https://instagram.com/yourname"
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="telegram"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel>Telegram URL</FieldLabel>
+                        <Input {...field} placeholder="https://t.me/yourname" />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="whatsapp"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel>WhatsApp URL</FieldLabel>
+                        <Input
+                          {...field}
+                          placeholder="https://wa.me/1234567890"
                         />
                         {fieldState.invalid && (
                           <FieldError errors={[fieldState.error]} />

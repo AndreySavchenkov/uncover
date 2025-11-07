@@ -9,17 +9,40 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 export const Header = () => {
-  const { user } = useUser();
-  const { profile } = useProfile();
+  const { user, loading: userLoading } = useUser();
+  const {
+    profile,
+    loading: profileLoading,
+    checked,
+    checkedUserId,
+  } = useProfile();
 
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (user && !profile && pathname !== "/profile/create") {
+    // ждём завершения проверки именно для текущего user.id
+    if (userLoading || profileLoading || !checked || checkedUserId !== user?.id)
+      return;
+
+    if (!user) return;
+
+    const noRedirectRoutes = ["/profile/create", "/login", "/register"];
+    // редиректим только если точно знаем, что профиля нет (profile === null)
+    if (profile === null && !noRedirectRoutes.includes(pathname)) {
       router.push("/profile/create");
     }
-  }, [user, profile, pathname, router]);
+  }, [
+    user,
+    profile,
+    userLoading,
+    profileLoading,
+    checked,
+    checkedUserId,
+    pathname,
+    router,
+  ]);
+
   return (
     <header className="flex items-center justify-center bg-green-600 h-14">
       <div className="container flex items-center justify-between">
@@ -28,7 +51,7 @@ export const Header = () => {
         {user && (
           <NavigationMenu>
             <NavigationMenuLink asChild>
-              <Link href="/game">Game</Link>
+              <Link href="/create-quiz">Create Quiz</Link>
             </NavigationMenuLink>
 
             <NavigationMenuLink asChild>
