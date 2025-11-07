@@ -5,7 +5,6 @@ import { Header } from "@/components/header/header";
 import { Footer } from "@/components/footer/footer";
 import { Toaster } from "@/components/ui/sonner";
 
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -29,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900`}
       >
         <Header />
         <div className="min-h-[calc(100vh-100px)] flex justify-center">
